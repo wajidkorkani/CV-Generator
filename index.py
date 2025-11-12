@@ -7,5 +7,4 @@ def Home():
   return render("index.html", text="Flask")
 
 
-
 app.run(debug=True)
