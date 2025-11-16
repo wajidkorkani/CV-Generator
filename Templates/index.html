@@ -1,12 +1,13 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>CV Generator</title>
-  <link rel="stylesheet" href="{{ url_for('static', filename='index.css') }}">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Slider</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='index.css') }}">
 </head>
 <body>
+
 
   <nav>
     <div class="logo">
@@ -20,5 +21,51 @@
   </nav>
 
 
+<div class="slider">
+    <div class="slides">
+
+        <!-- 5 Images -->
+        <img src="https://picsum.photos/id/1015/800/400" class="slide" />
+        <img src="https://picsum.photos/id/1025/800/400" class="slide" />
+        <img src="https://picsum.photos/id/1035/800/400" class="slide" />
+        <img src="https://picsum.photos/id/1045/800/400" class="slide" />
+        <img src="https://picsum.photos/id/1055/800/400" class="slide" />
+
+    </div>
+
+    <!-- Buttons -->
+    <button class="prev">❮</button>
+    <button class="next">❯</button>
+</div>
+
+  <script>
+    let index = 0;
+    const slides = document.querySelector(".slides");
+    const totalSlides = document.querySelectorAll(".slide").length;
+
+    // Next slide
+    document.querySelector(".next").addEventListener("click", () => {
+        index = (index + 1) % totalSlides;
+        updateSlide();
+    });
+
+    // Previous slide
+    document.querySelector(".prev").addEventListener("click", () => {
+        index = (index - 1 + totalSlides) % totalSlides;
+        updateSlide();
+    });
+
+    // Update slide position
+    function updateSlide() {
+        slides.style.transform = `translateX(${-index * 100}%)`;
+    }
+
+    // Auto-play every 3 seconds
+    setInterval(() => {
+        index = (index + 1) % totalSlides;
+        updateSlide();
+    }, 3000);
+
+  </script>
 </body>
 </html>
