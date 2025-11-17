@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>CV Form</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='form.css') }}">
 </head>
@@ -19,64 +19,40 @@
     </div>
   </nav>
 
-  <form action="/generate-cv" method="POST">
-    <h2>CV Input Form</h2>
+  <!-- Note enctype required for file upload -->
+  <form class="cv-form" action="/generate-pdf" method="post" enctype="multipart/form-data">
+    <h2>CV Information Form</h2>
 
-    <h3>Personal Information</h3>
-    <label>Full Name:</label>
-    <input type="text" name="name" required>
+    <label for="name">Full Name</label>
+    <input type="text" id="name" name="name" placeholder="Enter your full name" required>
 
-    <label>Email:</label>
-    <input type="email" name="email" required>
+    <label for="age">Age</label>
+    <input type="text" id="age" name="age" placeholder="Enter your age" required>
 
-    <label>Phone:</label>
-    <input type="text" name="phone" required>
+    <label for="city">City</label>
+    <input type="text" id="city" name="city" placeholder="Enter your city" required>
 
-    <label>Address:</label>
-    <textarea name="address" rows="2" required></textarea>
+    <label for="phone">Phone</label>
+    <input type="tel" id="phone" name="phone" placeholder="Enter your phone number" required>
 
-    <label>LinkedIn Profile:</label>
-    <input type="url" name="linkedin">
+    <label for="email">Email</label>
+    <input type="email" id="email" name="email" placeholder="Enter your email" required>
 
-    <label>Profile Summary:</label>
-    <textarea name="summary" rows="4"></textarea>
+    <label>Skills</label>
+    <input type="text" name="skill1" placeholder="Skill 1" required>
+    <input type="text" name="skill2" placeholder="Skill 2" required>
+    <input type="text" name="skill3" placeholder="Skill 3" required>
 
-    <h3>Education</h3>
-    <label>Degree:</label>
-    <input type="text" name="degree">
+    <label for="education">Education</label>
+    <input type="text" id="education" name="education" placeholder="Enter your highest education" required>
 
-    <label>Institution:</label>
-    <input type="text" name="institution">
+    <label for="about">About Yourself</label>
+    <textarea id="about" name="about" placeholder="Write something about yourself..." required></textarea>
 
-    <label>Year of Graduation:</label>
-    <input type="text" name="grad_year">
+    <label for="profile">Profile Photo (upload)</label>
+    <input type="file" id="profile" name="profile" accept="image/*">
 
-    <h3>Experience</h3>
-    <label>Company:</label>
-    <input type="text" name="company">
-
-    <label>Job Title:</label>
-    <input type="text" name="job_title">
-
-    <label>Duration:</label>
-    <input type="text" name="duration">
-
-    <label>Responsibilities:</label>
-    <textarea name="responsibilities" rows="3"></textarea>
-
-    <h3>Skills</h3>
-    <label>List your skills (comma separated):</label>
-    <textarea name="skills" rows="3"></textarea>
-
-    <h3>Projects</h3>
-    <label>Project Title:</label>
-    <input type="text" name="project_title">
-
-    <label>Description:</label>
-    <textarea name="project_desc" rows="3"></textarea>
-
-    <button type="submit">Generate CV</button>
+    <button type="submit">Submit</button>
   </form>
-
 </body>
 </html>
