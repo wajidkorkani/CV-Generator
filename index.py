@@ -10,6 +10,7 @@ from textwrap import wrap
 app = Flask(__name__)
 
 def make_circular_image(file_stream, size_px):
+    """Crops an image into a circle, resizes it, and returns a ReportLab ImageReader."""
     try:
         img = Image.open(file_stream).convert("RGBA")
         # crop to square
@@ -40,16 +41,22 @@ def make_circular_image(file_stream, size_px):
         return None
 
 def draw_wrapped(canvas_obj, x, y, text, max_width, font_name="Helvetica", font_size=10, leading=14):
+    """Draws wrapped text onto the canvas."""
     canvas_obj.setFont(font_name, font_size)
     lines = []
+    
+    # Calculate approx chars per line based on font size and max width
+    approx_chars = max(30, int(max_width / (font_size * 0.55)))
+    
     for paragraph in text.split("\n"):
-        # approximate max chars per line based on font_size; use wrap with a heuristic
-        # we will attempt wrapping by characters; adjust width to chars ratio:
-        approx_chars = max(30, int(max_width / (font_size * 0.55)))
-        for ln in wrap(paragraph, width=approx_chars):
-            lines.append(ln)
-        if paragraph.strip() == "":
+        if paragraph.strip():
+            # Use textwrap to split the paragraph into lines
+            for ln in wrap(paragraph, width=approx_chars):
+                lines.append(ln)
+        # Handle explicit newlines/empty paragraphs for spacing
+        else:
             lines.append("")
+            
     for ln in lines:
         canvas_obj.drawString(x, y, ln)
         y -= leading
@@ -57,19 +64,21 @@ def draw_wrapped(canvas_obj, x, y, text, max_width, font_name="Helvetica", font_
 
 @app.route('/')
 def home():
+    # Placeholder to serve the main HTML file
     return render("index.html")
 
 @app.route('/form')
 def form():
+    # Placeholder to serve the form HTML file
     return render("form.html")
 
 @app.route('/generate-pdf', methods=['POST'])
 def generate_pdf():
     # Collect fields
     name = request.form.get("name", "Your Name")
-    title = request.form.get("title", "")
-    profile = request.form.get("profile_text", "")
-    experiences = request.form.get("experiences", "")  # expected blocks separated by blank lines
+    title = request.form.get("title", "Job Title")
+    profile = request.form.get("profile_text", "A brief professional summary...")
+    experiences = request.form.get("experiences", "")
     education = request.form.get("education", "")
     skills = request.form.get("skills", "")
     languages = request.form.get("languages", "")
@@ -78,141 +87,146 @@ def generate_pdf():
     email = request.form.get("email", "")
     address = request.form.get("address", "")
 
-    # Profile image
+    # Profile image processing
     profile_file = request.files.get("photo")
     image_reader = None
     if profile_file and profile_file.filename:
         image_reader = make_circular_image(profile_file.stream, 120)
-
-    # fallback placeholder if static exists
-    if image_reader is None:
-        try:
-            with open("static/placeholder_profile.png", "rb") as f:
-                image_reader = make_circular_image(f, 120)
-        except Exception:
-            image_reader = None
-
+    
     # Create PDF
     buffer = BytesIO()
     c = canvas.Canvas(buffer, pagesize=A4)
     width, height = A4
 
-    # Colors and layout
-    blue = HexColor("#1E73BE")  # professional blue
+    # Colors and layout constants
+    blue = HexColor("#2C3E50")  # Dark professional blue
+    light_gray = HexColor("#F5F7FA")
     left_col_w = 190
     margin = 40
-
-    # Header: Full width top bar with name and title centered
-    c.setFillColor(blue)
-    c.rect(0, height - 90, width, 90, fill=1)
-    c.setFillColor(white)
-    c.setFont("Helvetica-Bold", 26)
-    c.drawString(margin, height - 60, name)
-    c.setFont("Helvetica", 12)
-    c.drawString(margin, height - 80, title)
-
-    # Right under header: start main content below header
-    y_start = height - 110
-
-    # Left column background soft (light gray)
-    c.setFillColor(HexColor("#F5F7FA"))
-    c.rect(margin, margin, left_col_w - margin + 10, height - 150, fill=1, stroke=0)
-
-    # Place profile image at top of left column (if present)
+    
+    # --- New Top Section Layout (Name, Title, Image) ---
+    
+    img_size = 120
+    img_x = margin
+    # Define top content start Y coordinate (40 pts from top margin)
+    y_start = height - margin 
+    img_y = y_start - img_size - 10 
+    
+    # 1. Image placement (top-left)
     if image_reader:
-        img_x = margin + 20
-        img_y = height - 190
-        c.drawImage(image_reader, img_x, img_y, width=110, height=110, mask='auto')
+        c.drawImage(image_reader, img_x, img_y, width=img_size, height=img_size, mask='auto')
 
-    # LEFT column content positions
+    # 2. Name and Title (next to image)
+    name_x = img_x + img_size + 20
+    name_y = img_y + img_size - 35 # Align slightly below top of image
+    
+    c.setFillColor(blue) # Use dark blue for the name
+    c.setFont("Helvetica-Bold", 32)
+    c.drawString(name_x, name_y, name)
+    
+    name_y -= 30
+    c.setFont("Helvetica", 16)
+    c.drawString(name_x, name_y, title)
+    
+    # New Y position for subsequent main content blocks (below the image area)
+    content_y_start = img_y - 30 
+    
+    # --- Left Column Background (Sidebar) ---
+    left_col_end_y = margin
+    c.setFillColor(light_gray)
+    # The gray rect starts from the new content Y position
+    c.rect(margin, left_col_end_y, left_col_w - margin + 10, content_y_start - left_col_end_y, fill=1, stroke=0)
+
+    # --- Left Column Content ---
     left_x = margin + 10
-    current_y = height - 220
-
+    current_y = content_y_start - 10 # Start content inside the gray box
+    leading = 16 # Increased vertical spacing in left column
+    
     # CONTACT block (left)
-    c.setFillColor(black)
-    c.setFont("Helvetica-Bold", 12)
     c.setFillColor(blue)
+    c.setFont("Helvetica-Bold", 12)
     c.drawString(left_x, current_y, "CONTACT")
     c.setFillColor(black)
-    current_y -= 18
+    current_y -= leading
     c.setFont("Helvetica", 10)
-    if phone: c.drawString(left_x, current_y, phone); current_y -= 14
-    if email: c.drawString(left_x, current_y, email); current_y -= 14
+    if phone: c.drawString(left_x, current_y, phone); current_y -= leading
+    if email: c.drawString(left_x, current_y, email); current_y -= leading
     if address:
-        # wrap address
         current_y -= 4
-        current_y = draw_wrapped(c, left_x, current_y, address, left_col_w - 30, font_size=9, leading=12)
-
-    current_y -= 10
+        # draw_wrapped is used with increased leading
+        current_y = draw_wrapped(c, left_x, current_y, address, left_col_w - 30, font_size=9, leading=14) 
+    
+    current_y -= 15
 
     # SKILLS block
     c.setFont("Helvetica-Bold", 12)
     c.setFillColor(blue)
     c.drawString(left_x, current_y, "SKILLS")
-    current_y -= 16
+    current_y -= leading
     c.setFillColor(black)
     c.setFont("Helvetica", 10)
-    # skills comma separated -> bullet lines
     for s in [s.strip() for s in skills.split(",") if s.strip()]:
         c.drawString(left_x + 6, current_y, u"• " + s)
-        current_y -= 14
+        current_y -= leading
 
-    current_y -= 6
+    current_y -= 10
 
     # LANGUAGES block
     c.setFont("Helvetica-Bold", 12)
     c.setFillColor(blue)
     c.drawString(left_x, current_y, "LANGUAGES")
-    current_y -= 16
+    current_y -= leading
     c.setFillColor(black)
     c.setFont("Helvetica", 10)
     for ln in [l.strip() for l in languages.split(",") if l.strip()]:
         c.drawString(left_x + 6, current_y, u"• " + ln)
-        current_y -= 14
+        current_y -= leading
 
-    current_y -= 6
+    current_y -= 10
 
     # HOBBIES block
     c.setFont("Helvetica-Bold", 12)
     c.setFillColor(blue)
     c.drawString(left_x, current_y, "HOBBIES")
-    current_y -= 16
+    current_y -= leading
     c.setFillColor(black)
     c.setFont("Helvetica", 10)
     for h in [h.strip() for h in hobbies.split(",") if h.strip()]:
         c.drawString(left_x + 6, current_y, u"• " + h)
-        current_y -= 14
+        current_y -= leading
 
-    # RIGHT column main content
+    # --- Right Column Main Content ---
     right_x = left_col_w + 30
     right_w = width - right_x - margin
+    leading_r = 16 # Increased vertical spacing in right column
 
-    # PROFILE (right)
-    cur_y = height - 120
+    # PROFILE (right) - Aligned with the start of the left column content
+    cur_y = content_y_start - 10 
+    
     c.setFillColor(blue)
     c.setFont("Helvetica-Bold", 14)
     c.drawString(right_x, cur_y, "PROFILE")
-    cur_y -= 18
+    cur_y -= leading_r
     c.setFillColor(black)
     c.setFont("Helvetica", 10)
+    # Use draw_wrapped for the profile section
     cur_y = draw_wrapped(c, right_x, cur_y, profile, right_w, font_size=10, leading=14)
-    cur_y -= 8
+    cur_y -= 15
 
     # WORK EXPERIENCE
     c.setFillColor(blue)
     c.setFont("Helvetica-Bold", 14)
     c.drawString(right_x, cur_y, "WORK EXPERIENCE")
-    cur_y -= 18
+    cur_y -= leading_r
     c.setFillColor(black)
     c.setFont("Helvetica", 10)
 
-    # Parse experiences: separate by blank lines. Each block: first line Job Title, second line Company - Dates, following lines bullets
+    # Parse experiences
     exp_blocks = []
     raw_blocks = [b.strip() for b in experiences.split("\n\n") if b.strip()]
     for b in raw_blocks:
         lines = [l for l in b.split("\n") if l.strip()]
-        if not lines:
-            continue
+        if not lines: continue
         title_line = lines[0]
         company_dates = lines[1] if len(lines) > 1 else ""
         bullets = lines[2:] if len(lines) > 2 else []
@@ -222,50 +236,62 @@ def generate_pdf():
         # Job title bold
         c.setFont("Helvetica-Bold", 11)
         c.drawString(right_x, cur_y, job)
-        # Company / dates smaller, right-aligned on same line
+        cur_y -= 14 # Space down for the next line
+
+        # Company / dates
         if company_dates:
             c.setFont("Helvetica", 9)
-            # draw dates at right edge
-            text_w = c.stringWidth(company_dates, "Helvetica", 9)
-            c.drawString(right_x + right_w - text_w, cur_y, company_dates)
-        cur_y -= 14
-        # company name line if included in company_dates or separate
-        if company_dates and "-" in company_dates:
-            # already shown
-            pass
+            # Use draw_wrapped for company/dates in case it's long
+            cur_y = draw_wrapped(c, right_x, cur_y, company_dates, right_w, font_size=9, leading=12)
+            cur_y += 1 # Correction from draw_wrapped's automatic leading step
+        
         # bullets
         c.setFont("Helvetica", 10)
+        bullet_x = right_x + 8
+        bullet_w = right_w - 8
+        bullet_leading = 14 # Bullet leading
+        
         for bt in bullets:
-            # wrap long bullet
-            bullet_lines = wrap(bt, width=100)
+            # Re-implementing wrapping for bullet points for better control
+            lines = []
+            approx_chars = max(30, int(bullet_w / (10 * 0.55))) # 10 is font size
+            for ln in wrap(bt, width=approx_chars):
+                lines.append(ln)
+
             first = True
-            for bl in bullet_lines:
-                prefix = u"• " if first else "  "
-                c.drawString(right_x + 8, cur_y, prefix + bl)
-                cur_y -= 12
+            for bl in lines:
+                prefix = u"• " if first else "  " # Indent subsequent lines
+                c.drawString(bullet_x, cur_y, prefix + bl)
+                cur_y -= bullet_leading
                 first = False
-        cur_y -= 6
-        # if we run low on page, create new page (basic check)
-        if cur_y < margin + 120:
+
+        cur_y -= 18 # Increased vertical spacing between experience blocks
+
+        # Basic page overflow check (simplified, only checks against bottom margin)
+        if cur_y < margin + 60:
             c.showPage()
-            # re-draw header area on new page (minimal)
+            # Reset Y position for new page
+            cur_y = height - margin - 10 # Start content lower than top margin
             c.setFillColor(blue)
-            c.rect(0, height - 90, width, 90, fill=1)
-            c.setFillColor(white)
-            c.setFont("Helvetica-Bold", 20)
-            c.drawString(margin, height - 60, name)
-            cur_y = height - 120
+            c.setFont("Helvetica-Bold", 14)
+            # Add a small header/title on continuation pages
+            c.drawString(margin, height - 30, f"{name} - Continuation")
+            c.drawString(right_x, cur_y, "WORK EXPERIENCE (Cont.)")
+            cur_y -= leading_r
+            c.setFillColor(black)
+            c.setFont("Helvetica", 10)
 
     # EDUCATION
     c.setFillColor(blue)
     c.setFont("Helvetica-Bold", 14)
     c.drawString(right_x, cur_y, "EDUCATION")
-    cur_y -= 18
+    cur_y -= leading_r
     c.setFillColor(black)
     c.setFont("Helvetica", 10)
+    
     for line in [l for l in education.split("\n") if l.strip()]:
-        # each education line may be "Degree - Institution (dates)"
-        cur_y = draw_wrapped(c, right_x, cur_y, line, right_w, font_size=10, leading=12)
+        # Each education line may be "Degree - Institution (dates)"
+        cur_y = draw_wrapped(c, right_x, cur_y, line, right_w, font_size=10, leading=14)
         cur_y -= 6
 
     # Finish and save
